@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  EXAMPLE: A valid configuration for video streaming with Ogg Theora
+  -->
+
+<ezstream>
+
+  <servers>
+    <server>
+      <hostname>127.0.0.1</hostname>
+      <password>hackme</password>
+    </server>
+  </servers>
+
+  <streams>
+    <stream>
+      <mountpoint>/video.ogg</mountpoint>
+      <format>Ogg</format>
+      <!-- No encoder configured (see below). -->
+    </stream>
+  </streams>
+
+  <intakes>
+    <intake>
+      <filename>playlist.m3u</filename>
+    </intake>
+  </intakes>
+
+  <decoders>
+    <decoder>
+      <name>Theora-192x128</name>
+      <!--
+        Reencodes into Ogg Theora directly. The stream should be configured
+        without an encoder, so that the decoder output is passed through as-is.
+        -->
+      <program>ffmpeg2theora -x 192 -y 128 -a 0 -v 4 --title @M@ -o - @T@</program>
+      <file_ext>.avi</file_ext>
+      <file_ext>.mpg</file_ext>
+    </decoder>
+  </decoders>
+
+</ezstream>

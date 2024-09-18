@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<ezstream>
+
+  <servers>
+    <server>
+      <hostname>127.0.0.1</hostname>
+    </server>
+  </servers>
+
+  <streams>
+    <stream>
+      <mountpoint>/stream.ogg</mountpoint>
+    </stream>
+  </streams>
+
+  <intakes>
+    <intake>
+    </intake>
+  </intakes>
+
+  <decoders>
+    <decoder>
+    </decoder>
+  </decoders>
+
+  <encoders>
+    <encoder>
+    </encoder>
+  </encoders>
+
+</ezstream>

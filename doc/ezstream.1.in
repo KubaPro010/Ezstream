@@ -1,0 +1,876 @@
+.\" Copyright (c) 2007 - 2020            Moritz Grimm <mgrimm@mrsserver.net>
+.\"
+.\" This program is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License version 2 as
+.\" published by the Free Software Foundation.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.Dd September 18, 2024
+.Dt EZSTREAM 1
+.Os ezstream 1.1.0
+.Sh NAME
+.Nm ezstream
+.Nd source client for Icecast with external de-/encoder support
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl hqrVv
+.Fl c Ar configfile
+.Op Fl p Ar pidfile
+.Ek
+.Nm
+.Bk -words
+.Fl s Ar file
+.Ek
+.Sh DESCRIPTION
+.Nm
+is a command line source client for media streams, primarily for streaming
+to Icecast servers.
+.Pp
+It allows the creation of media streams based on input from files or standard
+input that is piped through an optional external de- and encoder.
+As every part of this chain is highly configurable, ezstream can be useful in
+a large number of streaming setups.
+.Ss Command line arguments
+.Bl -tag -width Ds
+.It Fl c Ar configfile
+Use the XML configuration in
+.Ar configfile .
+.It Fl h
+Print a summary of available command line arguments with short descriptions
+and exit.
+.It Fl p Ar pidfile
+Write the
+.Nm
+process ID
+.Pq a single number
+to
+.Ar pidfile .
+The file will be written even when it already exists.
+A file lock is maintained until the main
+.Nm
+process terminates.
+If the file cannot be written for any reason,
+.Nm
+will log this, but not consider it a fatal error.
+.It Fl q
+Be more quiet.
+Suppress the output that external programs send to standard error.
+.It Fl r
+Maintain a line of real-time status information about the stream on standard
+output.
+.Po
+Implies
+.Fl q .
+.Pc
+.It Fl s Ar file
+Run
+.Nm
+as a line-based shuffling utility.
+If a
+.Ar playlist
+argument of
+.Dq -
+is given, a list of media file names is read from standard input
+instead of an input file.
+After successfully reading the entire list, it is shuffled and printed to
+standard output, and
+.Nm
+will exit.
+.It Fl V
+Print the
+.Nm
+version number and exit.
+.It Fl v
+Increase logging verbosity.
+May be used up to three times to also include debug logging output.
+.El
+.Ss Runtime control
+.Nm Ezstream
+offers limited runtime control via signals.
+By sending a signal to the ezstream process, e.g. with the
+.Xr kill 1
+utility, a certain action will be triggered.
+.Bl -tag -width -Ds
+.It Cd SIGHUP
+Rereads the playlist file after the track that is currently streamed.
+If the playlist is not to be shuffled,
+.Nm
+attempts to find the previously streamed file and continue with the one
+following it, or restarts from the beginning of the list otherwise.
+.It Cd SIGUSR1
+Skips the currently playing track and moves on to the next in playlist mode, or
+restarts the current track when streaming a single file.
+.It Cd SIGUSR2
+Triggers rereading of metadata for the stream by running the configured
+program or script.
+This is the only meaningful signal when streaming from standard input.
+.El
+.Pp
+.Sh CONFIGURATION FILE SYNTAX
+The
+.Nm
+utility uses a simple XML configuration file format.
+It has a tree-like structure and is made up of
+.Em XML elements .
+Of all the possible XML features, only regular elements that contain text or
+other elements, and comments, appear in an
+.Nm
+configuration file.
+.Pp
+Each element in the configuration file consists of a
+.Em start tag ,
+its content, and an
+.Em end tag .
+For example:
+.Pp
+.Dl \&<filename\&>playlist.m3u<\&/filename\&>
+.Dl \&<\&!-- XML comments look like this. --\&>
+.Sh XML CONFIGURATION
+In this section, each available element is listed and described.
+Note that for this purpose, elements are introduced in their short, i.e. empty
+form.
+In the configuration file, they need to be used as
+.Em start tag + content + end tag ,
+like in the introductory example shown above.
+.Ss Root element
+.Bl -tag -width -Ds
+.It Sy \&<ezstream\ /\&>
+.Pq Mandatory.
+The configuration file's root element.
+It contains all other configuration elements.
+.Pp
+.El
+.Ss Servers block
+.Bl -tag -width -Ds
+.It Sy \&<servers\ /\&>
+This element contains all server blocks as child elements.
+Its parent is the
+.Sy \&<ezstream\ /\&>
+element.
+.Pp
+A configuration file may contain multiple named server configurations.
+The stream configuration determines what server configuration should be used.
+.El
+.Ss Server block
+.Bl -tag -width -Ds
+.It Sy \&<server\ /\&>
+.Pq Mandatory.
+This element contains a complete server configuration as child elements.
+Its parent is the
+.Sy \&<servers\ /\&>
+element.
+.El
+.Ss Server configuration
+.Bl -tag -width -Ds
+.It Sy \&<name\ /\&>
+Set the name of the server configuration.
+This may be referenced in a
+.Sy \&<stream\ /\&> .
+.Pp
+The name is case-aware, but not case-sensitive.
+.Pp
+Default:
+.Ar default
+.It Sy \&<protocol\ /\&>
+Transport protocol used to stream to the server:
+.Pp
+.Bl -tag -width RoarAudio -compact
+.It Ar HTTP
+Plain-text HTTP.
+The \&<tls\ /\&> option defines, if TLS via RFC2817 or RFC2818 is also
+attempted.
+.It Ar HTTPS
+HTTP over TLS.
+This option implies that \&<tls\ /\&> is set to
+.Qq required .
+.It Ar ICY
+ICY streaming protocol
+.It Ar RoarAudio
+RoarAudio streaming protocol
+.El
+.Pp
+Default:
+.Ar HTTP
+.It Sy \&<hostname\ /\&>
+.Pq Mandatory.
+The FQDN host name or IP address of the server.
+.It Sy \&<port\ /\&>
+Port number on which the server is listening.
+.Pp
+Default:
+.Ar 8000
+.It Sy \&<user\ /\&>
+User to authenticate as on the server.
+.Pp
+Default:
+.Ar source
+.It Sy \&<password\ /\&>
+.Pq Mandatory.
+Password to authenticate with on the server.
+.It Sy \&<reconnect_attempts\ /\&>
+Number of reconnect attempts in case of connection issues with the server,
+or 0
+.Pq zero
+for trying indefinitely.
+.Pp
+Default:
+.Ar 0
+.It Sy \&<tls\ /\&>
+Configure the TLS encryption requirement for the server connection.
+Possible values are:
+.Pp
+.Bl -tag -width 0|NO|FALSE -compact
+.It Ar None
+No TLS encryption will be attempted.
+.It Ar May
+Opportunistic TLS encryption may be used, if the server supports it
+.It Ar Required
+TLS encryption is required.
+This is the only setting that is providing security against both passive and
+active attackers.
+.El
+.Pp
+Default:
+.Ar May
+.Pp
+This option is ignored when \&<protocol\ /\&> is set to
+.Ar HTTPS ,
+which implies a value of
+.Ar Required .
+.It Sy \&<tls_cipher_suite\ /\&>
+Configure allowed cipher suites for TLS.
+.Pp
+For example (modern cipher suites, PFS, TLS 1.2 or better):
+.Sy HIGH:!RSA:!SHA:!DH:!aNULL:!eNULL:!TLSv1 .
+.Pp
+Default:
+.Em libshout default cipher suite
+.It Sy \&<ca_dir\ /\&>
+Directory in which OpenSSL finds root CA certificates for validating the
+.Ar HTTPS
+server identity.
+.Pp
+Default:
+.Em system default
+.It Sy \&<ca_file\ /\&>
+Path of a root CA bundle file for validating the
+.Ar HTTPS
+server identity.
+.Pp
+Default:
+.Em system default
+.It Sy \&<client_cert\ /\&>
+X.503 client certificate and key
+.Pq in PEM format containing both certificate and key in the same file
+for authentication on an
+.Ar HTTPS
+server.
+.Pp
+Default:
+.Em no client certificate authentication
+.El
+.Ss Streams block
+.Bl -tag -width -Ds
+.It Sy \&<streams\ /\&>
+This element contains all stream blocks as child elements.
+Its parent is the
+.Sy \&<ezstream\ /\&>
+element.
+.Pp
+.Em Note:
+While multiple stream configurations are supported by the file format, only
+the one configuration with the name
+.Ar default
+will be used by
+.Nm .
+.El
+.Ss Stream block
+.Bl -tag -width -Ds
+.It Sy \&<stream\ /\&>
+.Pq Mandatory.
+This element contains the entire stream configuration as child elements.
+Its parent is the
+.Sy \&<streams\ /\&>
+element.
+.El
+.Ss Stream configuration
+.Bl -tag -width -Ds
+.It Sy \&<name\ /\&>
+Set the name of the stream configuration.
+.Pp
+The name is case-aware, but not case-sensitive.
+.Pp
+.Em Note:
+At this time, only the stream configuration with the default name is
+used and must be present.
+.Pp
+Default:
+.Ar default
+.It Sy \&<mountpoint\ /\&>
+.Pq Mandatory.
+Stream mountpoint on the server.
+.It Sy \&<public\ /\&>
+Boolean setting of whether the broadcast may be listed in a public YP
+directory, or not.
+.Pp
+.Bl -tag -width 0|NO|FALSE -compact
+.It Ar 0|No|False
+The broadcast is private (the default).
+.It Ar 1|Yes|True
+The broadcast is public.
+.El
+.It Sy \&<intake\ /\&>
+Use the intake
+.Po
+input media
+.Pc
+configuration with the provided symbolic name for this stream.
+.Pp
+Default:
+.Ar default
+.It Sy \&<server\ /\&>
+Use the server configuration with the provided symbolic name for this stream.
+.Pp
+Default:
+.Ar default
+.It Sy \&<format\ /\&>
+.Pq Mandatory.
+The stream format.
+.Pp
+.Bl -tag -width Matroska -compact
+.It Ar Ogg
+Ogg media format
+.It Ar MP3
+MP3 audio format
+.It Ar WebM
+WebM media format
+.It Ar Matroska
+Matroska media format
+.El
+.It Sy \&<encoder\ /\&>
+Use the encoder configuration with the provided symbolic name
+.Pq see below ,
+for (re)encoding the stream.
+Not configuring an encoder makes
+.Nm
+stream input media files as-is.
+.Pp
+The configured encoder's output stream format must match what is configured
+in
+.Sy \&<format\ /\&> .
+.It Sy \&<stream_name\ /\&>
+Informational name of the broadcast.
+.Pp
+Default:
+.Em none
+.It Sy \&<stream_url\ /\&>
+Informational URL associated with the broadcast, e.g. the web site.
+.Pp
+Default:
+.Em none
+.It Sy \&<stream_genre\ /\&>
+Informational genre of the broadcast.
+.Pp
+Default:
+.Em none
+.It Sy \&<stream_description\ /\&>
+Informational description of the broadcast.
+.Pp
+Default:
+.Em none
+.It Sy \&<stream_quality\ /\&>
+Informational quality setting of the VBR broadcast.
+.Pp
+Default:
+.Em none
+.It Sy \&<stream_bitrate\ /\&>
+Informational bitrate setting of the CBR broadcast.
+.Pp
+Default:
+.Em none
+.It Sy \&<stream_samplerate\ /\&>
+Informational sample rate of the broadcast audio.
+.Pp
+Default:
+.Em none
+.It Sy \&<stream_channels\ /\&>
+Informational number of audio channels of the broadcast.
+.Pp
+Default:
+.Em none
+.El
+.Ss Intakes block
+.Bl -tag -width -Ds
+.It Sy \&<intakes\ /\&>
+This element contains all intake blocks as child elements.
+Its parent is the
+.Sy \&<ezstream\ /\&>
+element.
+.Pp
+A configuration file may contain multiple named intake configurations.
+The stream configuration determines what intake
+.Po
+media input
+.Pc
+configuration should be used.
+.El
+.Ss Intake block
+.Bl -tag -width -Ds
+.It Sy \&<intake\ /\&>
+.Pq Mandatory.
+This element contains the entire input media configuration as child elements.
+Its parent is the
+.Sy \&<intakes\ /\&>
+element.
+.El
+.Ss Intake configuration
+.Bl -tag -width -Ds
+.It Sy \&<name\ /\&>
+Set the name of the intake configuration.
+This may be referenced in a
+.Sy \&<stream\ /\&> .
+.Pp
+The name is case-aware, but not case-sensitive.
+.Pp
+Default:
+.Ar default
+.It Sy \&<type\ /\&>
+Configure the input media type:
+.Pp
+.Bl -tag -width AUTODETECT -compact
+.It Ar autodetect
+Attempt to autodetect, whether the input is a playlist, or a single media
+file.
+Playlists are detected by their
+.Dq Li .m3u
+and
+.Dq Li .txt
+file name extensions.
+.Pq This is the default.
+.It Ar file
+The input is one single media file.
+.It Ar playlist
+The input is a playlist.
+Playlists are a newline-delimited list of media file path names.
+Comments in playlists are introduced by a
+.Sq Li #
+sign at the beginning of a line and ignored by
+.Nm .
+.It Ar program
+The input is an executable
+.Dq Playlist Program .
+See
+.Xr SCRIPTING
+for more information.
+.It Ar stdin
+The input is read from standard input and streamed as-is without any
+reencoding.
+.El
+.It Sy \&<filename\ /\&>
+The input media file name; mandatory for all but the
+.Ar stdin
+type.
+.It Sy \&<shuffle\ /\&>
+Boolean setting of whether the
+.Ar playlist
+type media should be shuffled, or not.
+.Pp
+.Bl -tag -width 0|NO|FALSE -compact
+.It Ar 0|No|False
+Stream the playlist content sequentially (the default).
+.It Ar 1|Yes|True
+Shuffle the playlist prior to streaming its content.
+.El
+.It Sy \&<stream_once\ /\&>
+Boolean setting of whether
+.Nm
+should exit after streaming its media input, or start over.
+.Pp
+.Bl -tag -width 0|NO|FALSE -compact
+.It Ar 0|No|False
+Attempt to start over whenever the end of the media input is reached (the
+default).
+.It Ar 1|Yes|True
+After streaming all media input, exit.
+.El
+.It Sy \&<rel_to_list\ /\&>
+Boolean setting, whether to locate playlist entries
+.Qq relative to the list .
+Entries with absolute path names are not affected.
+.Pp
+.Bl -tag -width 0|NO|FALSE -compact
+.It Ar 0|No|False
+Find files relative to the current working directory of
+.Nm
+(the default).
+.It Ar 1|Yes|True
+Find files relative to the location of the playlist file or program.
+.El
+.El
+.Ss Metadata block
+.Bl -tag -width -Ds
+.It Sy \&<metadata\ /\&>
+This element contains the entire metadata configuration as child elements.
+Its parent is the
+.Sy \&<ezstream\ /\&>
+element.
+.El
+.Ss Metadata configuration
+.Bl -tag -width -Ds
+.It Sy \&<program\ /\&>
+Set an executable
+.Dq Metadata Program
+to be queried for all metadata on
+.Sy SIGUSR2
+or whenever a new track begins.
+See
+.Xr SCRIPTING
+for more information.
+.Pp
+Default:
+.Em use metadata as contained in media files
+.It Sy \&<format_str\ /\&>
+Set the format of the string that should be used for the
+.Sq Li @M@
+placeholder, when quering for metadata from an executable.
+.Pp
+Default:
+.Li @a@ - @t@
+.It Sy \&<refresh_interval\ /\&>
+Configure a time interval for additional metadata updates via a
+.Dq Metadata Program :
+.Pp
+.Bl -tag -width -1 -compact
+.It Ar -1
+Do not trigger any additional metadata updates (the default).
+.It Ar 0
+Trigger metadata updates at the highest reasonable frequency.
+.It Ar \&>0
+Configure the time
+.Pq in seconds
+in between additional metadata updates.
+.El
+.It Sy \&<normalize_strings\ /\&>
+Boolean setting of whether metadata strings should have excess whitespace
+removed, or not.
+.Pp
+.Bl -tag -width 0|NO|FALSE -compact
+.It Ar 0|No|False
+Use metadata strings as-is (the default).
+.It Ar 1|Yes|True
+Trim leading and trailing whitespace, as well as remove excess whitespace
+in case that there is more than one in sequence.
+.El
+.It Sy \&<no_updates\ /\&>
+Boolean setting of whether metadata updates should be suppressed altogether,
+or not.
+.Pp
+.Bl -tag -width 0|NO|FALSE -compact
+.It Ar 0|No|False
+Update metadata in the usual manner (the default).
+.It Ar 1|Yes|True
+Disable all metadata updates, and keep existing metadata in streams untouched.
+.El
+.El
+.Ss Decoders block
+.Bl -tag -width -Ds
+.It Sy \&<decoders\ /\&>
+This element contains all decoder blocks as child elements.
+Its parent is the
+.Sy \&<ezstream\ /\&>
+element.
+.El
+.Ss Decoder block
+.Bl -tag -width -Ds
+.It Sy \&<decoder\ /\&>
+This element contains all configuration of a single decoder.
+Its parent is the
+.Sy \&<decoders\ /\&>
+element.
+.El
+.Ss Decoder configuration
+.Bl -tag -width -Ds
+.It Sy \&<name\ /\&>
+Set the name of the decoder configuration.
+.Pp
+The name is case-aware, but not case-sensitive.
+.Pp
+Default:
+.Ar default
+.It Sy \&<program\ /\&>
+.Pq Mandatory.
+Set the full command line to decode a media input file, represented by the
+.Sq @T@
+placeholder, into a
+.Dq canonical internal format
+on standard output.
+.Pp
+The canonical format should be the same for all configured decoders, e.g. RAW
+audio with a specific signedness, bitrate, and samplerate that can be
+consumed by encoders.
+.Pp
+For exotic use cases, metadata placeholders may be used here.
+.Pp
+Example:
+.Dl \&<program\&>oggdec -R -o - @T@\&</program\&>
+.It Sy \&<file_ext\ /\&>
+.Pq Mandatory.
+Set a filename extension to be associated with this decoder.
+.Pp
+It is possible to specify more than one
+.Sy \&<file_ext\ /\&>
+element per decoder to associate more than one file extension to the same
+decoder.
+.Pp
+A filename extension can only be associated with one decoder.
+.El
+.Ss Encoders block
+.Bl -tag -width -Ds
+.It Sy \&<encoders\ /\&>
+This element contains all encoder blocks as child elements.
+Its parent is the
+.Sy \&<ezstream\ /\&>
+element.
+.El
+.Ss Encoder block
+.Bl -tag -width -Ds
+.It Sy \&<encoder\ /\&>
+This element contains all configuration of a single encoder.
+Its parent is the
+.Sy \&<encoders\ /\&>
+element.
+.El
+.Ss Encoder configuration
+.Bl -tag -width -Ds
+.It Sy \&<name\ /\&>
+.Pq Mandatory.
+Set the name of the encoder configuration.
+This may be referenced in a
+.Sy \&<stream\ /\&>
+block in case (re)encoding is desired.
+.Pp
+The name is case-aware, but not case-sensitive.
+.Pp
+Default:
+.Ar default
+.It Sy \&<format\ /\&>
+.Pq Mandatory.
+Stream format produced by this encoder.
+This must be one of the available stream formats as specified for the
+.Sy \&<stream\ /\&>
+block.
+.It Sy \&<program\ /\&>
+.Pq Mandatory.
+Set the full command line to encode the
+.Dq canonical internal format
+from standard input into a supported stream format on standard output.
+.Pp
+Metadata placeholders may be used here.
+.Pp
+Example:
+.Dl \&<program\&>oggenc -r -q 1.5 -t @M@ -\&</program\&>
+.El
+.Sh SCRIPTING
+The
+.Nm
+utility provides hooks for externally controlled playlist and metadata
+management.
+This is done by running external programs or scripts that need to behave in
+ways explained here.
+.Ss Common Rules
+.Bl -dash -compact
+.It
+The program must be an executable file.
+.It
+The program must write one line to standard output and exit.
+.It
+The program must not require arbitrary command line options to function.
+A wrapper script must be used if there is no other way.
+.El
+.Ss Playlist Programs
+.Bl -dash -compact
+.It
+The program must return only filenames, with one filename per execution.
+.It
+The program should not return an empty line unless
+.Nm
+is supposed to know that the end of the playlist has been reached.
+This is significant when the
+.Li \&<stream_once/\&>
+option is enabled.
+.El
+.Ss Metadata Programs
+.Bl -dash -compact
+.It
+The program must not return anything (just a newline character is okay) if it
+is called by
+.Nm
+with a command line argument that the program does not support.
+.It
+When called without command line arguments, the program should return a
+complete string that should be used for metadata.
+.It
+When called with the command line argument
+.Qq Li artist ,
+the program should return only the artist information of the metadata.
+.Pq Optional.
+.It
+When called with the command line argument
+.Qq Li title ,
+the program should return only the title information of the metadata.
+.Pq Optional.
+.It
+The supplied metadata must be encoded in UTF-8.
+.El
+.Sh METADATA
+The main tool for handling metadata with
+.Nm
+is placeholders in decoder and encoder commands that are replaced with real
+content during runtime.
+.Pp
+.Em Note:
+All placeholders are replaced with content enclosed in single quotes, with
+escaped single quote and backslash characters in between, so that
+interpretation by the shell does not occur.
+.Em \&Do not add any additional quoting!
+.Ss Metadata Placeholders
+.Bl -tag -width -Ds
+.It Sy @T@
+Replaced with the media file name.
+Required in
+.Li /ezstream/decoders/decoder/program .
+Available in
+.Li /ezstream/metadata/format_str .
+.It Sy @M@
+Replaced with a metadata string.
+.Pq See below for a detailed explanation.
+Available in
+.Li /ezstream/decoders/decoder/program
+and
+.Li /ezstream/encoders/encoder/program .
+.It Sy @a@
+Replaced with the artist information.
+Available in
+.Li /ezstream/decoders/decoder/program ,
+.Li /ezstream/encoders/encoder/program
+and
+.Li /ezstream/metadata/format_str .
+.It Sy @t@
+Replaced with the title information.
+Available in
+.Li /ezstream/decoders/decoder/program ,
+.Li /ezstream/encoders/encoder/program
+and
+.Li /ezstream/metadata/format_str .
+.It Sy @b@
+Replaced with the album information.
+Available in
+.Li /ezstream/decoders/decoder/program ,
+.Li /ezstream/encoders/encoder/program
+and
+.Li /ezstream/metadata/format_str .
+.It Sy @s@
+Replaced with the string returned by
+.Li /ezstream/metadata/program
+when called without any command line arguments.
+Available only in
+.Li /ezstream/metadata/format_str .
+.El
+.Ss The @M@ Placeholder
+While all other placeholders are simply replaced with whatever data they are
+associated with,
+.Sq Li @M@
+is context-sensitive.
+The logic used by
+.Nm
+is the following:
+.Bd -literal -offset indent
+If ('@M@ is present')
+    If (/ezstream/metadata/program AND /ezstream/metadata/format_str)
+        Replace with format string result.
+    Else
+        If (NOT /ezstream/metadata/program AND '@t@ is present')
+            Replace with empty string.
+        else
+            Replace with generated metadata string.
+        Endif
+    Endif
+Endif
+.Ed
+.Pp
+The generated metadata string for
+.Sq Li @M@
+is of the format
+.Dq Em Artist - Title ,
+if both artist and title information is available.
+If one of the two is missing, the available one is displayed without a leading
+or trailing dash, e.g. just
+.Dq Em Artist .
+If neither artist nor title are available, the name of the media file \(em
+without its file extension \(em is used.
+.Ss Metadata Caveats
+It is possible to generate strange results with odd combinations of
+placeholders, external metadata programs and updates during runtime via
+.Sy SIGUSR2 .
+If things start to become just confusing, simplify.
+.Pp
+Metadata updates during runtime are done with a eccentric feature of libshout.
+Additional metadata information that is already present in the stream sent via
+.Nm
+is usually destroyed and replaced with the new data.
+It is not possible to properly discern between artist and title information,
+which means that anything set with the
+.Sy SIGUSR2
+feature will continue to end up entirely in the
+.Qq Em Title
+field of a stream.
+.Pp
+Additional limitations in Icecast may apply as well, where one historic
+example is that of all possible Ogg-based streams, only Ogg Vorbis can have
+its metadata manipulated.
+.Pp
+The ID3v1 tags
+.Pq relevant when streaming in MP3 format
+do not specify any character encoding, so
+.Nm
+operates in a manner of
+.Dq best effort .
+In case of encoding issues, it may help to explicitly set a codeset to work
+with via the
+.Ev LC_CTYPE
+environment variable, as
+.Nm
+assumes ID3v1 tags to be in the user's current locale.
+Note that, even though support for different locales is provided by
+.Nm ,
+Icecast itself and the listening clients also have a say in the matter.
+The only way to ensure consistent results with metadata in non-Ogg streams is
+to use only the characters available in the ISO-8859-1 codeset.
+.Pp
+External encoders may put additional, and possibly artificial, restrictions on
+valid characters in metadata.
+.Sh FILES
+.Bl -tag -width "!!EXAMPLES_DIR!!" -compact
+.It Pa !!EXAMPLES_DIR!!
+Directory containing example configuration files for various uses of
+.Nm ,
+as well as example playlist and metadata scripts.
+.El
+.Sh SEE ALSO
+.Xr ezstream-cfgmigrate 1 ,
+.Xr ezstream-file.sh 1
+.Sh AUTHORS
+.Nm
+was written by:
+.Pp
+.An Ed Zaleski Aq oddsock@oddsock.org
+.An Moritz Grimm Aq mgrimm@mrsserver.net
+.Pp
+.An -nosplit
+This manual was written by
+.An Moritz Grimm .

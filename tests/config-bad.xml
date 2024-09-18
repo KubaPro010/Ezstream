@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<ezstream>
+
+  <servers>
+    <server>
+      <name></name>
+      <protocol></protocol>
+      <hostname></hostname>
+      <port></port>
+      <user></user>
+      <password></password>
+      <tls></tls>
+      <tls_cipher_suite></tls_cipher_suite>
+      <ca_dir></ca_dir>
+      <ca_file></ca_file>
+      <client_cert></client_cert>
+      <reconnect_attempts></reconnect_attempts>
+    </server>
+    <!-- ... -->
+  </servers>
+
+  <streams>
+    <stream>
+      <name></name>
+      <mountpoint></mountpoint>
+      <public></public>
+      <intake></intake>
+      <server></server>
+      <format></format>
+      <encoder></encoder>
+      <stream_name></stream_name>
+      <stream_url></stream_url>
+      <stream_genre></stream_genre>
+      <stream_description></stream_description>
+      <stream_quality></stream_quality>
+      <stream_bitrate></stream_bitrate>
+      <stream_samplerate></stream_samplerate>
+      <stream_channels></stream_channels>
+    </stream>
+    <!-- ... -->
+  </streams>
+
+  <intakes>
+    <intake>
+      <name></name>
+      <type></type>
+      <filename></filename>
+      <shuffle></shuffle>
+      <stream_once></stream_once>
+      <rel_to_list></rel_to_list>
+    </intake>
+  </intakes>
+
+  <metadata>
+    <program></program>
+    <format_str></format_str>
+    <refresh_interval></refresh_interval>
+    <normalize_strings></normalize_strings>
+    <no_updates></no_updates>
+  </metadata>
+
+  <decoders>
+    <decoder>
+      <name></name>
+      <program></program>
+      <file_ext></file_ext>
+      <!-- ... -->
+    </decoder>
+    <!-- ... -->
+  </decoders>
+
+  <encoders>
+    <encoder>
+      <name></name>
+      <format></format>
+      <program></program>
+    </encoder>
+    <!-- ... -->
+  </encoders>
+
+</ezstream>
